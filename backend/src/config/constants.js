@@ -1,0 +1,44 @@
+// Source unique des valeurs d'enum (anglais) et des codes d'erreur.
+// DOIT rester strictement aligné sur backend/openapi.yaml.
+
+const ACCOUNT_STATUS = {
+  PENDING: 'PENDING',
+  VERIFIED: 'VERIFIED',
+  SUSPENDED: 'SUSPENDED',
+  BANNED: 'BANNED',
+};
+
+const ROLES = {
+  USER: 'USER',
+  ADMIN: 'ADMIN',
+};
+
+const KYC_STATUS = {
+  NONE: 'NONE',
+  PENDING: 'PENDING',
+  VALIDATED: 'VALIDATED',
+  REJECTED: 'REJECTED',
+};
+
+// Codes machine renvoyés dans { error: { code, message } } — voir openapi.yaml.
+const ERROR_CODES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  EMAIL_ALREADY_USED: 'EMAIL_ALREADY_USED',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+  ACCOUNT_SUSPENDED: 'ACCOUNT_SUSPENDED',
+  ACCOUNT_BANNED: 'ACCOUNT_BANNED',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  RATE_LIMITED: 'RATE_LIMITED',
+};
+
+const REGISTRATION_TOKEN_TTL_SECONDS = 900; // 15 min
+
+module.exports = {
+  ACCOUNT_STATUS,
+  ROLES,
+  KYC_STATUS,
+  ERROR_CODES,
+  REGISTRATION_TOKEN_TTL_SECONDS,
+};
