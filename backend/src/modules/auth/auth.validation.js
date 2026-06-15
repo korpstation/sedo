@@ -19,6 +19,27 @@ const registerStep1Schema = Joi.object({
   telephone,
 });
 
+// Mot de passe : 8 caractères min, au moins 1 majuscule, 1 chiffre, 1 symbole.
+const motDePasse = Joi.string()
+  .min(8)
+  .pattern(/[A-Z]/)
+  .pattern(/[0-9]/)
+  .pattern(/[^A-Za-z0-9]/)
+  .required()
+  .messages({
+    'string.min': 'Le mot de passe doit faire au moins 8 caractères.',
+    'string.pattern.base':
+      'Le mot de passe doit contenir une majuscule, un chiffre et un symbole.',
+    'any.required': 'Le mot de passe est requis.',
+  });
+
+// Inscription étape 2 — mot de passe
+const registerSecuritySchema = Joi.object({
+  registrationToken: Joi.string().required(),
+  motDePasse,
+});
+
 module.exports = {
   registerStep1Schema,
+  registerSecuritySchema,
 };

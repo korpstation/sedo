@@ -14,6 +14,19 @@ async function register(req, res, next) {
   }
 }
 
+// POST /api/v1/auth/register/security — inscription étape 2 (mot de passe)
+async function registerSecurity(req, res, next) {
+  try {
+    await authService.registerSecurity(req.body.registrationToken, req.body.motDePasse);
+    res.status(201).json({
+      message: 'Compte créé. Vérifiez votre email pour l’activer.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
+  registerSecurity,
 };
