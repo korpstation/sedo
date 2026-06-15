@@ -6,6 +6,7 @@ const {
   registerStep1Schema,
   registerSecuritySchema,
   loginSchema,
+  refreshTokenSchema,
   verifyEmailSchema,
   resendVerificationSchema,
 } = require('./auth.validation');
@@ -19,6 +20,8 @@ router.post(
   controller.registerSecurity
 );
 router.post('/login', validate(loginSchema), controller.login);
+router.post('/refresh-token', validate(refreshTokenSchema), controller.refreshToken);
+router.post('/logout', authenticate, validate(refreshTokenSchema), controller.logout);
 router.post('/verify-email', validate(verifyEmailSchema), controller.verifyEmail);
 router.post(
   '/resend-verification',

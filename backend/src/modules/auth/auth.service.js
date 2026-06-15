@@ -1,14 +1,10 @@
 const { v4: uuidv4 } = require('uuid');
 const AppError = require('../../utils/AppError');
 const { ERROR_CODES, ACCOUNT_STATUS } = require('../../config/constants');
-const {
-  signRegistrationToken,
-  verifyRegistrationToken,
-  signAccessToken,
-  signRefreshToken,
-} = require('../../utils/jwt');
+const { signRegistrationToken, verifyRegistrationToken } = require('../../utils/jwt');
 const { hashPassword, comparePassword } = require('../../utils/password');
 const mailer = require('../../utils/mailer');
+const sessionService = require('./session.service');
 const User = require('../../models/user.model');
 
 // Étape 1 : émet un token de poursuite portant l'identité (pas encore de compte).
@@ -86,10 +82,7 @@ async function login(email, motDePasse) {
     );
   }
 
-  const accessToken = signAccessToken({ sub: user.id, role: user.role });
-  const refreshToken = signRefreshToken({ sub: user.id });
-
-  return { accessToken, refreshToken, utilisateur: user.toPublic() };
+  return sessionService.startSession(user);
 }
 
 // Vérifie l'email via le token reçu : PENDING -> VERIFIED.

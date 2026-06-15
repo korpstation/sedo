@@ -45,6 +45,11 @@ const loginSchema = Joi.object({
   motDePasse: Joi.string().required(),
 });
 
+// Refresh / logout
+const refreshTokenSchema = Joi.object({
+  refreshToken: Joi.string().required(),
+});
+
 // Vérification email
 const verifyEmailSchema = Joi.object({
   token: Joi.string().required(),
@@ -59,6 +64,7 @@ module.exports = {
   registerStep1Schema,
   registerSecuritySchema,
   loginSchema,
+  refreshTokenSchema,
   verifyEmailSchema,
   resendVerificationSchema,
 };
