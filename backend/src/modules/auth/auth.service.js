@@ -1,7 +1,9 @@
+const { v4: uuidv4 } = require('uuid');
 const AppError = require('../../utils/AppError');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, ACCOUNT_STATUS } = require('../../config/constants');
 const { signRegistrationToken, verifyRegistrationToken } = require('../../utils/jwt');
 const { hashPassword } = require('../../utils/password');
+const mailer = require('../../utils/mailer');
 const User = require('../../models/user.model');
 
 // Étape 1 : émet un token de poursuite portant l'identité (pas encore de compte).
@@ -31,11 +33,49 @@ async function registerSecurity(registrationToken, motDePasse) {
   }
 
   const motDePasseHashe = await hashPassword(motDePasse);
-  await User.create({ prenom, nom, email, telephone, motDePasse: motDePasseHashe });
-  // TODO (cycle verify-email) : générer emailVerifToken + envoyer l'email de vérification.
+  const emailVerifToken = uuidv4();
+  await User.create({
+    prenom,
+    nom,
+    email,
+    telephone,
+    motDePasse: motDePasseHashe,
+    emailVerifToken,
+  });
+
+  await mailer.sendVerificationEmail(email, emailVerifToken);
+}
+
+// Vérifie l'email via le token reçu : PENDING -> VERIFIED.
+async function verifyEmail(token) {
+  const user = await User.findOne({ emailVerifToken: token });
+  if (!user) {
+    throw new AppError(
+      ERROR_CODES.INVALID_TOKEN,
+      400,
+      'Token de vérification invalide ou expiré.'
+    );
+  }
+
+  user.emailVerifie = true;
+  user.statut = ACCOUNT_STATUS.VERIFIED;
+  user.emailVerifToken = undefined;
+  await user.save();
+}
+
+// Renvoie l'email de vérification (réponse neutre : pas d'indice d'existence).
+async function resendVerification(email) {
+  const user = await User.findOne({ email });
+  if (!user || user.emailVerifie) return;
+
+  user.emailVerifToken = uuidv4();
+  await user.save();
+  await mailer.sendVerificationEmail(user.email, user.emailVerifToken);
 }
 
 module.exports = {
   createRegistrationToken,
   registerSecurity,
+  verifyEmail,
+  resendVerification,
 };

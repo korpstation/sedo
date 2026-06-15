@@ -26,7 +26,31 @@ async function registerSecurity(req, res, next) {
   }
 }
 
+// POST /api/v1/auth/verify-email — valide le token de vérification
+async function verifyEmail(req, res, next) {
+  try {
+    await authService.verifyEmail(req.body.token);
+    res.status(200).json({ message: 'Email vérifié. Votre compte est activé.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/v1/auth/resend-verification — renvoie l'email (réponse neutre)
+async function resendVerification(req, res, next) {
+  try {
+    await authService.resendVerification(req.body.email);
+    res.status(200).json({
+      message: 'Si un compte non vérifié existe, un email de vérification a été renvoyé.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
   registerSecurity,
+  verifyEmail,
+  resendVerification,
 };
