@@ -1,5 +1,6 @@
 const AppError = require('../utils/AppError');
 const { ERROR_CODES } = require('../config/constants');
+const logger = require('../utils/logger');
 
 // Gestionnaire d'erreurs central -> modèle uniforme { error: { code, message, details? } }.
 // eslint-disable-next-line no-unused-vars
@@ -10,10 +11,7 @@ function errorHandler(err, req, res, next) {
     return res.status(err.statusCode).json(body);
   }
 
-  if (process.env.NODE_ENV !== 'test') {
-    // eslint-disable-next-line no-console
-    console.error(err);
-  }
+  logger.error(err.stack || err.message);
   return res.status(500).json({
     error: { code: ERROR_CODES.INTERNAL_ERROR, message: 'Erreur interne du serveur.' },
   });
