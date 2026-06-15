@@ -26,6 +26,16 @@ async function registerSecurity(req, res, next) {
   }
 }
 
+// POST /api/v1/auth/login — connexion
+async function login(req, res, next) {
+  try {
+    const tokens = await authService.login(req.body.email, req.body.motDePasse);
+    res.status(200).json(tokens);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // POST /api/v1/auth/verify-email — valide le token de vérification
 async function verifyEmail(req, res, next) {
   try {
@@ -51,6 +61,7 @@ async function resendVerification(req, res, next) {
 module.exports = {
   register,
   registerSecurity,
+  login,
   verifyEmail,
   resendVerification,
 };

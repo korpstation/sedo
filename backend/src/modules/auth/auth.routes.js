@@ -4,6 +4,7 @@ const validate = require('../../middlewares/validate');
 const {
   registerStep1Schema,
   registerSecuritySchema,
+  loginSchema,
   verifyEmailSchema,
   resendVerificationSchema,
 } = require('./auth.validation');
@@ -16,6 +17,7 @@ router.post(
   validate(registerSecuritySchema),
   controller.registerSecurity
 );
+router.post('/login', validate(loginSchema), controller.login);
 router.post('/verify-email', validate(verifyEmailSchema), controller.verifyEmail);
 router.post(
   '/resend-verification',

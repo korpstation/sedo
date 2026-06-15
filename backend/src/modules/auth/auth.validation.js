@@ -39,6 +39,12 @@ const registerSecuritySchema = Joi.object({
   motDePasse,
 });
 
+// Connexion
+const loginSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().required(),
+  motDePasse: Joi.string().required(),
+});
+
 // Vérification email
 const verifyEmailSchema = Joi.object({
   token: Joi.string().required(),
@@ -52,6 +58,7 @@ const resendVerificationSchema = Joi.object({
 module.exports = {
   registerStep1Schema,
   registerSecuritySchema,
+  loginSchema,
   verifyEmailSchema,
   resendVerificationSchema,
 };

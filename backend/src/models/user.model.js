@@ -32,4 +32,22 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Représentation publique (jamais motDePasse / pin / tokens) — voir UserPublic.
+userSchema.methods.toPublic = function toPublic() {
+  return {
+    id: this._id.toString(),
+    prenom: this.prenom,
+    nom: this.nom,
+    email: this.email,
+    telephone: this.telephone,
+    role: this.role,
+    statut: this.statut,
+    emailVerifie: this.emailVerifie,
+    kycStatut: this.kycStatut,
+    limiteMensuelle: this.limiteMensuelle,
+    limiteUtilisee: this.limiteUtilisee,
+    createdAt: this.createdAt,
+  };
+};
+
 module.exports = mongoose.model('User', userSchema);
