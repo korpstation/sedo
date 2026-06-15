@@ -58,10 +58,16 @@ async function resendVerification(req, res, next) {
   }
 }
 
+// GET /api/v1/auth/me — profil de l'utilisateur courant
+async function me(req, res) {
+  res.status(200).json(req.user.toPublic());
+}
+
 module.exports = {
   register,
   registerSecurity,
   login,
   verifyEmail,
   resendVerification,
+  me,
 };

@@ -1,6 +1,7 @@
 const express = require('express');
 const controller = require('./auth.controller');
 const validate = require('../../middlewares/validate');
+const authenticate = require('../../middlewares/authenticate');
 const {
   registerStep1Schema,
   registerSecuritySchema,
@@ -24,5 +25,7 @@ router.post(
   validate(resendVerificationSchema),
   controller.resendVerification
 );
+
+router.get('/me', authenticate, controller.me);
 
 module.exports = router;
