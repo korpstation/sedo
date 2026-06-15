@@ -112,10 +112,47 @@ async function resendVerification(email) {
   await mailer.sendVerificationEmail(user.email, user.emailVerifToken);
 }
 
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 h
+
+// Demande de reset (réponse neutre : pas d'indice d'existence).
+async function forgotPassword(email) {
+  const user = await User.findOne({ email });
+  if (!user) return;
+
+  user.resetPasswordToken = uuidv4();
+  user.resetPasswordExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await user.save();
+  await mailer.sendPasswordResetEmail(user.email, user.resetPasswordToken);
+}
+
+// Réinitialise le mot de passe et révoque toutes les sessions de l'utilisateur.
+async function resetPassword(token, motDePasse) {
+  const user = await User.findOne({
+    resetPasswordToken: token,
+    resetPasswordExpires: { $gt: new Date() },
+  });
+  if (!user) {
+    throw new AppError(
+      ERROR_CODES.INVALID_TOKEN,
+      400,
+      'Lien de réinitialisation invalide ou expiré.'
+    );
+  }
+
+  user.motDePasse = await hashPassword(motDePasse);
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+
+  await sessionService.revokeAllForUser(user.id);
+}
+
 module.exports = {
   createRegistrationToken,
   registerSecurity,
   login,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPassword,
 };

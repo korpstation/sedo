@@ -19,6 +19,9 @@ const userSchema = new mongoose.Schema(
     emailVerifie: { type: Boolean, default: false },
     emailVerifToken: { type: String },
 
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
+
     kycStatut: {
       type: String,
       enum: Object.values(KYC_STATUS),

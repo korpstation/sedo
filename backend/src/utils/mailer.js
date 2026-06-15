@@ -8,6 +8,13 @@ async function sendVerificationEmail(to, token) {
   // lien: `${env.APP_URL}/verify-email?token=${token}`
 }
 
+async function sendPasswordResetEmail(to, token) {
+  if (env.NODE_ENV === 'test' || !env.SENDGRID_API_KEY) return;
+  // TODO: intégration SendGrid réelle.
+  // lien: `${env.APP_URL}/reset-password?token=${token}`
+}
+
 module.exports = {
   sendVerificationEmail,
+  sendPasswordResetEmail,
 };

@@ -7,6 +7,8 @@ const {
   registerSecuritySchema,
   loginSchema,
   refreshTokenSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationSchema,
 } = require('./auth.validation');
@@ -22,6 +24,12 @@ router.post(
 router.post('/login', validate(loginSchema), controller.login);
 router.post('/refresh-token', validate(refreshTokenSchema), controller.refreshToken);
 router.post('/logout', authenticate, validate(refreshTokenSchema), controller.logout);
+router.post(
+  '/forgot-password',
+  validate(forgotPasswordSchema),
+  controller.forgotPassword
+);
+router.post('/reset-password', validate(resetPasswordSchema), controller.resetPassword);
 router.post('/verify-email', validate(verifyEmailSchema), controller.verifyEmail);
 router.post(
   '/resend-verification',

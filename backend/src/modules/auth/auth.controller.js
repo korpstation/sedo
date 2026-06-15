@@ -79,6 +79,28 @@ async function logout(req, res, next) {
   }
 }
 
+// POST /api/v1/auth/forgot-password — demande de réinitialisation (réponse neutre)
+async function forgotPassword(req, res, next) {
+  try {
+    await authService.forgotPassword(req.body.email);
+    res.status(200).json({
+      message: 'Si un compte existe, un email de réinitialisation a été envoyé.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/v1/auth/reset-password — applique le nouveau mot de passe
+async function resetPassword(req, res, next) {
+  try {
+    await authService.resetPassword(req.body.token, req.body.motDePasse);
+    res.status(200).json({ message: 'Mot de passe réinitialisé.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/v1/auth/me — profil de l'utilisateur courant
 async function me(req, res) {
   res.status(200).json(req.user.toPublic());
@@ -92,5 +114,7 @@ module.exports = {
   logout,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPassword,
   me,
 };

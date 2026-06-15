@@ -50,6 +50,16 @@ const refreshTokenSchema = Joi.object({
   refreshToken: Joi.string().required(),
 });
 
+// Mot de passe oublié / réinitialisation
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().required(),
+});
+
+const resetPasswordSchema = Joi.object({
+  token: Joi.string().required(),
+  motDePasse,
+});
+
 // Vérification email
 const verifyEmailSchema = Joi.object({
   token: Joi.string().required(),
@@ -65,6 +75,8 @@ module.exports = {
   registerSecuritySchema,
   loginSchema,
   refreshTokenSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationSchema,
 };
