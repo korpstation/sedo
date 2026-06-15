@@ -392,7 +392,7 @@ components:
         telephone:
           type: string
           description: Numéro au format international (E.164), validé via libphonenumber.
-          example: "+22901900102"
+          example: "+2290190010203"
 
     RegisterStep1Response:
       type: object

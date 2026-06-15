@@ -1,10 +1,5 @@
-// Infra de test : variables d'env de test + MongoDB en mémoire.
-// Doit s'exécuter AVANT l'import de l'app (setupFilesAfterEnv).
-process.env.NODE_ENV = 'test';
-process.env.JWT_ACCESS_SECRET = 'test-access-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-process.env.JWT_REGISTRATION_SECRET = 'test-registration-secret-cccccccccccccccccccccccccccccc';
-
+// Infra de test : MongoDB en mémoire (les variables d'env sont fixées en amont
+// par tests/env.setup.js via setupFiles).
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 

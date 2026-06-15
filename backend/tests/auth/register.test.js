@@ -5,7 +5,7 @@ const validIdentity = {
   prenom: 'Amina',
   nom: 'Dossou',
   email: 'amina@example.com',
-  telephone: '+22901900102',
+  telephone: '+2290190010203',
 };
 
 describe('POST /api/v1/auth/register (étape 1 — identité)', () => {
@@ -18,5 +18,37 @@ describe('POST /api/v1/auth/register (étape 1 — identité)', () => {
     expect(typeof res.body.registrationToken).toBe('string');
     expect(res.body.registrationToken.length).toBeGreaterThan(0);
     expect(res.body.expiresIn).toBe(900);
+  });
+
+  it("rejette un email invalide en 422 avec le détail du champ", async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ ...validIdentity, email: 'pas-un-email' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(Array.isArray(res.body.error.details)).toBe(true);
+    expect(res.body.error.details.some((d) => d.champ === 'email')).toBe(true);
+  });
+
+  it("rejette un champ requis manquant en 422", async () => {
+    const { prenom, ...sansPrenom } = validIdentity;
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send(sansPrenom);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details.some((d) => d.champ === 'prenom')).toBe(true);
+  });
+
+  it("rejette un numéro de téléphone invalide en 422", async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ ...validIdentity, telephone: '12345' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details.some((d) => d.champ === 'telephone')).toBe(true);
   });
 });
