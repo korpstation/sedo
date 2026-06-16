@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const AppError = require('../../utils/AppError');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, ACCOUNT_STATUS } = require('../../config/constants');
 const {
   signAccessToken,
   signRefreshToken,
@@ -57,6 +57,15 @@ async function rotate(presentedToken) {
 
   const user = await User.findById(session.user);
   if (!user) throw invalidToken();
+
+  // Le compte a pu être suspendu/banni depuis l'émission : on coupe la famille.
+  if (
+    user.statut === ACCOUNT_STATUS.SUSPENDED ||
+    user.statut === ACCOUNT_STATUS.BANNED
+  ) {
+    await Session.updateMany({ familyId: session.familyId }, { revoked: true });
+    throw invalidToken();
+  }
 
   const accessToken = signAccessToken({ sub: user.id, role: user.role });
   const refreshToken = await issueRefreshToken(user, session.familyId);

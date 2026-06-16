@@ -1,5 +1,6 @@
 const request = require('supertest');
 const app = require('../../src/app');
+const User = require('../../src/models/user.model');
 const { createUser } = require('../helpers/factories');
 
 const password = 'Sedo@2026';
@@ -28,6 +29,16 @@ describe('POST /api/v1/auth/refresh-token', () => {
 
   it('rejette un refresh token invalide (401 INVALID_TOKEN)', async () => {
     const res = await refresh('refresh-bidon');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('INVALID_TOKEN');
+  });
+
+  it('refuse la rotation si le compte a été suspendu (401)', async () => {
+    const { refreshToken } = await loginFresh('susp@example.com');
+    await User.updateOne({ email: 'susp@example.com' }, { statut: 'SUSPENDED' });
+
+    const res = await refresh(refreshToken);
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('INVALID_TOKEN');
