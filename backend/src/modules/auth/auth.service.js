@@ -1,15 +1,24 @@
 const { v4: uuidv4 } = require('uuid');
 const AppError = require('../../utils/AppError');
 const { ERROR_CODES, ACCOUNT_STATUS } = require('../../config/constants');
+
+const EMAIL_VERIF_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 const { signRegistrationToken, verifyRegistrationToken } = require('../../utils/jwt');
 const { hashPassword, comparePassword } = require('../../utils/password');
 const mailer = require('../../utils/mailer');
 const sessionService = require('./session.service');
 const User = require('../../models/user.model');
 
-// Étape 1 : émet un token de poursuite portant l'identité (pas encore de compte).
-function createRegistrationToken(identity) {
+// Étape 1 : vérifie l'unicité de l'email puis émet un token de poursuite
+// portant l'identité (pas encore de compte créé).
+async function createRegistrationToken(identity) {
   const { prenom, nom, email, telephone } = identity;
+
+  const existing = await User.findOne({ email });
+  if (existing) {
+    throw new AppError(ERROR_CODES.EMAIL_ALREADY_USED, 409, 'Cet email est déjà utilisé.');
+  }
+
   return signRegistrationToken({ prenom, nom, email, telephone });
 }
 
@@ -42,6 +51,7 @@ async function registerSecurity(registrationToken, motDePasse) {
     telephone,
     motDePasse: motDePasseHashe,
     emailVerifToken,
+    emailVerifTokenExpires: new Date(Date.now() + EMAIL_VERIF_TOKEN_TTL_MS),
   });
 
   await mailer.sendVerificationEmail(email, emailVerifToken);
@@ -87,7 +97,10 @@ async function login(email, motDePasse) {
 
 // Vérifie l'email via le token reçu : PENDING -> VERIFIED.
 async function verifyEmail(token) {
-  const user = await User.findOne({ emailVerifToken: token });
+  const user = await User.findOne({
+    emailVerifToken: token,
+    emailVerifTokenExpires: { $gt: new Date() },
+  });
   if (!user) {
     throw new AppError(
       ERROR_CODES.INVALID_TOKEN,
@@ -99,6 +112,7 @@ async function verifyEmail(token) {
   user.emailVerifie = true;
   user.statut = ACCOUNT_STATUS.VERIFIED;
   user.emailVerifToken = undefined;
+  user.emailVerifTokenExpires = undefined;
   await user.save();
 }
 
@@ -108,6 +122,7 @@ async function resendVerification(email) {
   if (!user || user.emailVerifie) return;
 
   user.emailVerifToken = uuidv4();
+  user.emailVerifTokenExpires = new Date(Date.now() + EMAIL_VERIF_TOKEN_TTL_MS);
   await user.save();
   await mailer.sendVerificationEmail(user.email, user.emailVerifToken);
 }

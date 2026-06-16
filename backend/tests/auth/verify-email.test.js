@@ -58,6 +58,21 @@ describe('Vérification email', () => {
     expect(res.body.error.code).toBe('INVALID_TOKEN');
   });
 
+  it('rejette un token de vérification expiré (400)', async () => {
+    await createUser({
+      email: 'expired@example.com',
+      emailVerifToken: 'token-expire',
+      emailVerifTokenExpires: new Date(Date.now() - 1000),
+    });
+
+    const res = await request(app)
+      .post('/api/v1/auth/verify-email')
+      .send({ token: 'token-expire' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_TOKEN');
+  });
+
   it('renvoie l’email pour un compte non vérifié (200) et déclenche le mailer', async () => {
     await createUser({
       email: 'pending@example.com',

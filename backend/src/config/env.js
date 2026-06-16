@@ -13,6 +13,8 @@ if (process.env.NODE_ENV === 'test') {
   process.env.JWT_ACCESS_SECRET ||= 'test-access-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
   process.env.JWT_REFRESH_SECRET ||= 'test-refresh-secret-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
   process.env.JWT_REGISTRATION_SECRET ||= 'test-registration-secret-cccccccccccccccccccccccc';
+  // Rate-limit neutralisé par défaut en test (le test dédié le réactive).
+  process.env.DISABLE_RATE_LIMIT ||= 'true';
 }
 
 const schema = Joi.object({

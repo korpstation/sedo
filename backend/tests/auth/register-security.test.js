@@ -60,8 +60,9 @@ describe('POST /api/v1/auth/register/security (étape 2 — mot de passe)', () =
   });
 
   it('rejette un email déjà utilisé (409 EMAIL_ALREADY_USED)', async () => {
-    await createUser({ email: 'amina@example.com' });
+    // Course : le token est émis (étape 1 OK), PUIS l'email est pris avant l'étape 2.
     const registrationToken = await registrationTokenFor();
+    await createUser({ email: 'amina@example.com' });
 
     const res = await request(app)
       .post('/api/v1/auth/register/security')

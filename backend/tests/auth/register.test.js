@@ -1,5 +1,6 @@
 const request = require('supertest');
 const app = require('../../src/app');
+const { createUser } = require('../helpers/factories');
 
 const validIdentity = {
   prenom: 'Amina',
@@ -50,5 +51,14 @@ describe('POST /api/v1/auth/register (étape 1 — identité)', () => {
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
     expect(res.body.error.details.some((d) => d.champ === 'telephone')).toBe(true);
+  });
+
+  it("rejette une identité dont l'email est déjà utilisé en 409", async () => {
+    await createUser({ email: validIdentity.email });
+
+    const res = await request(app).post('/api/v1/auth/register').send(validIdentity);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('EMAIL_ALREADY_USED');
   });
 });
