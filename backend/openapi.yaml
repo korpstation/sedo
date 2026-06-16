@@ -1,0 +1,471 @@
+openapi: 3.0.3
+info:
+  title: SÈDO API
+  version: 0.1.0
+  description: >
+    API REST de SÈDO — transfert d'argent FCFA ↔ Europe.
+    Contrat construit **tranche par tranche** (contract-first). Cette version
+    couvre la tranche **Auth** uniquement ; les tranches KYC, Transactions,
+    Bénéficiaires, Notifications et Admin seront ajoutées ensuite.
+    Convention : noms de champs en français, valeurs d'enum en anglais.
+    Toutes les routes sont préfixées par /api/v1.
+
+servers:
+  - url: http://localhost:3000
+    description: Développement local
+  - url: https://api.sedo.app
+    description: Production
+
+tags:
+  - name: Auth
+    description: Inscription, vérification email, session et mot de passe
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Inscription — étape 1 (identité)
+      description: >
+        Valide l'identité et l'unicité de l'email. **Ne crée pas encore le
+        compte** : renvoie un `registrationToken` court (15 min) qui porte les
+        données de l'étape 1 et doit être présenté à l'étape 2. Évite les
+        comptes à moitié créés.
+      operationId: registerStep1
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterStep1Request'
+      responses:
+        '200':
+          description: Identité acceptée, token de poursuite émis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterStep1Response'
+        '409':
+          description: Email déjà utilisé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/v1/auth/register/security:
+    post:
+      tags: [Auth]
+      summary: Inscription — étape 2 (mot de passe) → crée le compte
+      description: >
+        Crée le compte (statut `PENDING`, bcrypt coût 12) à partir du
+        `registrationToken` de l'étape 1, puis envoie l'email de vérification
+        (token UUID v4, expire 24 h).
+      operationId: registerStep2
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSecurityRequest'
+      responses:
+        '201':
+          description: Compte créé (PENDING), email de vérification envoyé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: registrationToken invalide ou expiré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: >
+            Email déjà utilisé — un compte a été créé avec cet email entre
+            l'étape 1 et l'étape 2 (course concurrente).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: EMAIL_ALREADY_USED
+                  message: Cet email est déjà utilisé.
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Vérifier l'email
+      description: Valide le token de vérification → `emailVerifie=true`, statut `PENDING → VERIFIED`.
+      operationId: verifyEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, description: Token UUID v4 reçu par email }
+      responses:
+        '200':
+          description: Email vérifié, compte activé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Token invalide ou expiré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Renvoyer l'email de vérification
+      description: >
+        Renvoie un email de vérification si le compte existe et n'est pas
+        encore vérifié. Réponse volontairement neutre (anti-énumération).
+      operationId: resendVerification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Si un compte non vérifié existe, un email a été renvoyé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Connexion
+      description: >
+        Authentifie l'utilisateur et renvoie un access token (15 min) + refresh
+        token (7 j). Bloqué si email non vérifié (statut `PENDING`), `SUSPENDED`
+        ou `BANNED`. Rate-limit : 5 tentatives → blocage 15 min.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        '401':
+          description: Identifiants invalides
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Email ou mot de passe incorrect.
+        '403':
+          description: >
+            Connexion refusée selon l'état du compte. Le champ `error.code`
+            distingue chaque cas pour que le client réagisse précisément
+            (proposer le renvoi de l'email, afficher un contact support, etc.).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                emailNonVerifie:
+                  summary: Email non vérifié (statut PENDING)
+                  value:
+                    error:
+                      code: EMAIL_NOT_VERIFIED
+                      message: Veuillez vérifier votre email avant de vous connecter.
+                compteSuspendu:
+                  summary: Compte suspendu par un admin (statut SUSPENDED)
+                  value:
+                    error:
+                      code: ACCOUNT_SUSPENDED
+                      message: Votre compte est suspendu. Contactez le support.
+                compteBanni:
+                  summary: Compte banni (statut BANNED)
+                  value:
+                    error:
+                      code: ACCOUNT_BANNED
+                      message: Votre compte a été désactivé définitivement.
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/v1/auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Renouveler les tokens (rotation)
+      description: >
+        Échange un refresh token valide contre une nouvelle paire access +
+        refresh (rotation). La réutilisation d'un refresh déjà consommé
+        invalide toute la famille de tokens de la session (détection de vol).
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Nouvelle paire de tokens
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        '401':
+          description: Refresh token invalide, expiré ou révoqué
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Déconnexion
+      description: Révoque le refresh token fourni (fin de session).
+      operationId: logout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Déconnecté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Demander la réinitialisation du mot de passe
+      description: >
+        Envoie un lien de réinitialisation (token expire 1 h) si le compte
+        existe. Réponse neutre (anti-énumération).
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Si un compte existe, un email de reset a été envoyé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Réinitialiser le mot de passe
+      description: Définit un nouveau mot de passe via le token de reset, puis envoie un email de confirmation.
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, motDePasse]
+              properties:
+                token: { type: string }
+                motDePasse: { $ref: '#/components/schemas/Password' }
+      responses:
+        '200':
+          description: Mot de passe réinitialisé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Token invalide ou expiré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Profil de l'utilisateur courant
+      description: Renvoie l'utilisateur authentifié (utilisé au démarrage de l'app pour hydrater la session).
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Utilisateur courant
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPublic' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token JWT (15 min), à mettre dans l'en-tête Authorization.
+
+  responses:
+    Unauthorized:
+      description: Token d'accès manquant, invalide ou expiré
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Échec de validation des données (Joi)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Trop de tentatives — réessayer plus tard
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Secondes avant nouvelle tentative
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Password:
+      type: string
+      format: password
+      minLength: 8
+      description: 8 caractères min, au moins 1 majuscule, 1 chiffre et 1 symbole.
+      example: "Sedo@2026"
+
+    RegisterStep1Request:
+      type: object
+      required: [prenom, nom, email, telephone]
+      properties:
+        prenom: { type: string, example: Amina }
+        nom: { type: string, example: Dossou }
+        email: { type: string, format: email, example: amina@example.com }
+        telephone:
+          type: string
+          description: Numéro au format international (E.164), validé via libphonenumber.
+          example: "+2290190010203"
+
+    RegisterStep1Response:
+      type: object
+      properties:
+        registrationToken:
+          type: string
+          description: JWT court (15 min) à fournir à l'étape 2.
+        expiresIn: { type: integer, example: 900, description: Durée de validité (s) }
+
+    RegisterSecurityRequest:
+      type: object
+      required: [registrationToken, motDePasse]
+      properties:
+        registrationToken: { type: string }
+        motDePasse: { $ref: '#/components/schemas/Password' }
+
+    LoginRequest:
+      type: object
+      required: [email, motDePasse]
+      properties:
+        email: { type: string, format: email }
+        motDePasse: { type: string, format: password }
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string, description: JWT, 15 min }
+        refreshToken: { type: string, description: 7 jours }
+        utilisateur: { $ref: '#/components/schemas/UserPublic' }
+
+    UserPublic:
+      type: object
+      description: Représentation publique de l'utilisateur (jamais motDePasse/pin/tokens).
+      properties:
+        id: { type: string, example: "665a1f2e9c3b4a0012ab34cd" }
+        prenom: { type: string }
+        nom: { type: string }
+        email: { type: string, format: email }
+        telephone: { type: string }
+        role: { type: string, enum: [USER, ADMIN] }
+        statut: { type: string, enum: [PENDING, VERIFIED, SUSPENDED, BANNED] }
+        emailVerifie: { type: boolean }
+        kycStatut: { type: string, enum: [NONE, PENDING, VALIDATED, REJECTED] }
+        limiteMensuelle: { type: integer, description: FCFA (entier), example: 0 }
+        limiteUtilisee: { type: integer, description: FCFA (entier), example: 0 }
+        createdAt: { type: string, format: date-time }
+
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string, example: Opération réussie }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Code machine stable.
+              example: EMAIL_ALREADY_USED
+            message:
+              type: string
+              description: Message lisible (FR).
+              example: Cet email est déjà utilisé.
+            details:
+              type: array
+              description: Détails par champ (validation).
+              items:
+                type: object
+                properties:
+                  champ: { type: string, example: email }
+                  message: { type: string, example: Format d'email invalide }
